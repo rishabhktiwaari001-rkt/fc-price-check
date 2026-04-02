@@ -1,0 +1,71 @@
+import streamlit as st
+import pandas as pd
+
+# 1. Setup the Page Layout
+st.set_page_config(page_title="FC Quick Price Lookup", page_icon="🛒", layout="centered")
+
+# 2. Load the Data Efficiently
+@st.cache_data
+def load_data():
+    # Read the CSV file
+    df = pd.read_csv('discount_data.csv')
+    
+    # Convert ProductID to a string to ensure barcodes match perfectly
+    df['ProductID'] = df['ProductID'].astype(str)
+    return df
+
+# Load the dataframe
+df = load_data()
+
+# 3. Design the Dashboard UI
+st.title("🛒 FC Quick Price Lookup")
+st.markdown("Scan a barcode or type the **Product ID** below:")
+
+# Create the text input box
+product_id = st.text_input("Enter Product ID:", placeholder="e.g., 17237878")
+
+# 4. Search and Display Logic
+if product_id:
+    # Clean the input (removes accidental spaces)
+    search_query = product_id.strip()
+    
+    # Search the dataframe for the exact Product ID
+    result = df[df['ProductID'] == search_query]
+
+    if not result.empty:
+        # Extract the exact row of data
+        row = result.iloc[0]
+        
+        name = row['ProductName']
+        mrp = row['MRP']
+        sale_price = row['After Discount']
+        discount_pct = row['% discount']
+
+        # Handle blank data cells safely
+        if pd.isna(sale_price): sale_price = mrp
+        if pd.isna(discount_pct): discount_pct = 0.0
+
+        # Display the Product Name
+        st.success("✅ Product Found!")
+        st.subheader(name)
+        
+        st.divider() # Adds a clean visual line
+        
+        # Display the pricing using Streamlit's Metric columns
+        col1, col2, col3 = st.columns(3)
+        
+        col1.metric(label="MRP", value=f"₹{mrp:,.2f}")
+        col2.metric(label="Discount", value=f"{discount_pct:.0f}%")
+        
+        # Calculate savings and display final price
+        savings = mrp - sale_price
+        col3.metric(
+            label="Final Sale Price", 
+            value=f"₹{sale_price:,.2f}", 
+            delta=f"-₹{savings:,.2f}", 
+            delta_color="inverse"
+        )
+        
+    else:
+        # Error message if the ID is wrong or not in the sheet
+        st.error("⚠️ Product not found in today's discount sheet. Please check the ID.")
