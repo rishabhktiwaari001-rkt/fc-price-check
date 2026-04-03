@@ -1,71 +1,81 @@
 import streamlit as st
 import pandas as pd
 
-# 1. Setup the Page Layout
-st.set_page_config(page_title="FC Quick Price Lookup", page_icon="🛒", layout="centered")
+# 1. Page Setup (Design)
+st.set_page_config(page_title="FC Price Check", page_icon="🛒", layout="centered")
 
-# 2. Load the Data Efficiently
+# 2. Data Load Karna
 @st.cache_data
 def load_data():
-    # Read the CSV file
+    # File padhna (File ka naam exactly 'discount_data.csv' hona chahiye)
     df = pd.read_csv('discount_data.csv')
     
-    # Convert ProductID to a string to ensure barcodes match perfectly
-    df['ProductID'] = df['ProductID'].astype(str)
+    # ProductID ko text/string mein convert karna taaki barcode scanner smoothly kaam kare
+    df['ProductID'] = df['ProductID'].astype(str).str.strip()
     return df
 
-# Load the dataframe
-df = load_data()
+try:
+    df = load_data()
+except FileNotFoundError:
+    st.error("❌ 'discount_data.csv' file nahi mili. Kripya GitHub par file check karein ki naam ekdam sahi hai ya nahi.")
+    st.stop()
 
-# 3. Design the Dashboard UI
+# 3. Dashboard UI (Screen par jo dikhega)
 st.title("🛒 FC Quick Price Lookup")
-st.markdown("Scan a barcode or type the **Product ID** below:")
+st.markdown("Niche barcode scan karein ya **Product ID** type karein:")
 
-# Create the text input box
+# Input Box
 product_id = st.text_input("Enter Product ID:", placeholder="e.g., 17237878")
 
-# 4. Search and Display Logic
+# 4. Search aur Dikhane ka Logic
 if product_id:
-    # Clean the input (removes accidental spaces)
-    search_query = product_id.strip()
+    # Galti se type hue spaces ko hatana
+    search_query = str(product_id).strip()
     
-    # Search the dataframe for the exact Product ID
+    # Data sheet mein product dhoondna
     result = df[df['ProductID'] == search_query]
 
     if not result.empty:
-        # Extract the exact row of data
+        # Product milne par data nikalna
         row = result.iloc[0]
         
         name = row['ProductName']
-        mrp = row['MRP']
-        sale_price = row['After Discount']
-        discount_pct = row['% discount']
+        mrp = float(row['MRP'])
+        
+        # Discount aur Sale Price ko safely read karna
+        sale_price_raw = row['After Discount']
+        discount_pct_raw = row['% discount']
+        
+        # Agar Excel sheet mein discount khali ho, toh MRP ko hi Sale Price maan lo
+        if pd.isna(sale_price_raw) or sale_price_raw == 0 or str(sale_price_raw).strip() == '': 
+            sale_price = mrp
+        else:
+            sale_price = float(sale_price_raw)
+            
+        if pd.isna(discount_pct_raw) or str(discount_pct_raw).strip() == '': 
+            discount_pct = 0.0
+        else:
+            discount_pct = float(discount_pct_raw)
 
-        # Handle blank data cells safely
-        if pd.isna(sale_price): sale_price = mrp
-        if pd.isna(discount_pct): discount_pct = 0.0
-
-        # Display the Product Name
+        # Screen par Result dikhana
         st.success("✅ Product Found!")
         st.subheader(name)
+        st.divider()
         
-        st.divider() # Adds a clean visual line
-        
-        # Display the pricing using Streamlit's Metric columns
+        # 3 Boxes mein Price aur Discount dikhana
         col1, col2, col3 = st.columns(3)
-        
         col1.metric(label="MRP", value=f"₹{mrp:,.2f}")
         col2.metric(label="Discount", value=f"{discount_pct:.0f}%")
         
-        # Calculate savings and display final price
+        # Kitne paise bache (Savings) calculate karna
         savings = mrp - sale_price
         col3.metric(
             label="Final Sale Price", 
             value=f"₹{sale_price:,.2f}", 
-            delta=f"-₹{savings:,.2f}", 
+            delta=f"-₹{savings:,.2f}" if savings > 0 else None, 
             delta_color="inverse"
         )
         
     else:
-        # Error message if the ID is wrong or not in the sheet
-        st.error("⚠️ Product not found in today's discount sheet. Please check the ID.")
+        # Agar product list mein na ho
+        st.error("⚠️ Product aaj ki discount list me nahi mila. Kripya ID check karein.")
