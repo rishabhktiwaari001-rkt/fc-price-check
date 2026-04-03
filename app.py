@@ -4,10 +4,12 @@ import pandas as pd
 # 1. App Setup
 st.set_page_config(page_title="FC Price Check", page_icon="🛒", layout="centered")
 
-# 2. Load Data
+# 2. Load Data (Fixed Encoding Error)
 @st.cache_data
 def load_data():
-    df = pd.read_csv('discount_data.csv')
+    # Yahan 'latin-1' add kiya hai taaki special characters (jaise ₹) bina error padh sake
+    df = pd.read_csv('discount_data.csv', encoding='latin-1')
+    
     # Convert ProductID to string to handle barcode scans perfectly
     df['ProductID'] = df['ProductID'].astype(str).str.strip()
     return df
@@ -16,6 +18,9 @@ try:
     df = load_data()
 except FileNotFoundError:
     st.error("❌ 'discount_data.csv' file not found. Please check GitHub.")
+    st.stop()
+except Exception as e:
+    st.error(f"❌ File read error: {e}")
     st.stop()
 
 # 3. UI Design
