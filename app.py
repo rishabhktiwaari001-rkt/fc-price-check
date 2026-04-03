@@ -4,13 +4,16 @@ import pandas as pd
 # 1. App Setup
 st.set_page_config(page_title="FC Price Check", page_icon="🛒", layout="centered")
 
-# 2. Load Data (Fixed Encoding Error)
+# 2. Load Data (Bulletproof Mac CSV Reader)
 @st.cache_data
 def load_data():
-    # Yahan 'latin-1' add kiya hai taaki special characters (jaise ₹) bina error padh sake
-    df = pd.read_csv('discount_data.csv', encoding='latin-1')
+    # 'utf-8-sig' Mac ke hidden codes (BOM) ko automatically hata deta hai
+    df = pd.read_csv('discount_data.csv', encoding='utf-8-sig')
     
-    # Convert ProductID to string to handle barcode scans perfectly
+    # Sabhi columns ke aage-peeche se invisible spaces hatana
+    df.columns = df.columns.str.strip()
+    
+    # ProductID ko string mein convert karna
     df['ProductID'] = df['ProductID'].astype(str).str.strip()
     return df
 
@@ -32,17 +35,23 @@ product_id = st.text_input("Enter Product ID:", placeholder="e.g., 17237878")
 # 4. Search Logic
 if product_id:
     search_query = str(product_id).strip()
+    
+    # Extra safety check ki column hai ya nahi
+    if 'ProductID' not in df.columns:
+        st.error(f"❌ Error: ProductID column gayab hai. Excel file check karein. Columns mile: {', '.join(df.columns)}")
+        st.stop()
+        
     result = df[df['ProductID'] == search_query]
 
     if not result.empty:
         row = result.iloc[0]
         
-        name = row['ProductName']
-        mrp = float(row['MRP'])
+        # .get() use kiya hai taaki minor spelling mistake pe app crash na ho
+        name = row.get('ProductName', 'Unknown Product')
+        mrp = float(row.get('MRP', 0))
         
-        # Handle empty discount cells safely
-        sale_price_raw = row['After Discount']
-        discount_pct_raw = row['% discount']
+        sale_price_raw = row.get('After Discount', mrp)
+        discount_pct_raw = row.get('% discount', 0)
         
         if pd.isna(sale_price_raw) or str(sale_price_raw).strip() == '': 
             sale_price = mrp
