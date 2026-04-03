@@ -4,7 +4,7 @@ import pandas as pd
 # 1. App Setup
 st.set_page_config(page_title="FC Price Check", page_icon="🛒", layout="centered")
 
-# 2. Load Data (Bulletproof Mac CSV Reader)
+# 2. Load Data 
 @st.cache_data
 def load_data():
     df = pd.read_csv('discount_data.csv', encoding='utf-8-sig')
@@ -21,8 +21,14 @@ except Exception as e:
     st.error(f"❌ File read error: {e}")
     st.stop()
 
-# 3. UI Design
-st.title("🛒 FC Quick Price Lookup")
+# 3. UI Design (WITH LOGO)
+col_logo, col_title = st.columns([1, 4])
+with col_logo:
+    # FirstCry ka official Logo URL
+    st.image("https://cdn.fcglcdn.com/brainbees/images/n/fc_logo.png", width=80)
+with col_title:
+    st.title("Quick Price Lookup")
+
 st.markdown("Scan barcode or type **Product ID** below:")
 
 product_id = st.text_input("Enter Product ID:", placeholder="e.g., 17237878")
@@ -56,30 +62,22 @@ if product_id:
         else:
             discount_pct = float(discount_pct_raw)
 
-        # ---------------------------------------------------------
-        # NAYA FEATURE: SCREEN KO 2 HISSON MEIN DIVIDE KARNA
-        # ---------------------------------------------------------
         st.success("✅ Product Found!")
         st.divider()
         
-        # Ek column image ke liye, dusra details ke liye
         col_img, col_details = st.columns([1, 2.5]) 
         
-        # LEFT SIDE: FirstCry ke server se direct photo link banana
         with col_img:
-            # FirstCry ka default image URL pattern
             img_url = f"https://cdn.fcglcdn.com/brainbees/images/products/438x531/{search_query}a.webp"
             try:
                 st.image(img_url, use_container_width=True)
             except:
                 st.info("📷 Image not available on server")
 
-        # RIGHT SIDE: Price aur Name ki details
         with col_details:
             st.subheader(name)
-            st.write("") # Thoda space dene ke liye
+            st.write("") 
             
-            # 3 Boxes mein Price aur Discount dikhana
             price_col1, price_col2, price_col3 = st.columns(3)
             price_col1.metric(label="MRP", value=f"₹{mrp:,.2f}")
             price_col2.metric(label="Discount", value=f"{discount_pct:.0f}%")
